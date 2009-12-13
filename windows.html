@@ -1,8 +1,11 @@
 
+<h2>Setting up a windows computer for wings development</h2>
 
+<p> These where the steps I did to get a wings system up and running on
+  my new windows computer.
+</p>
 
-
-<p>  Installing a git and mingw for windows. </p>
+<h2>Installing a git and mingw for windows</h2>
 <p>
   Goto <a href="http://code.google.com/p/msysgit/downloads/list"> MsysGit </a>.
   and msysGit-fullinstall.
@@ -11,6 +14,58 @@
   Because it have gcc and make tools, i.e. all you need to get a decent shell, 
   compiler and make tools.
 </p>
+<p>
+  Now you can start your mingw shell with: /mysgit/msys.bat
+</p>
+
+<h2>Installing Erlang</h2>
+
+<p> Download emacs and <a href="http://www.erlang.org">erlang</a>.</p>
+
+<h2>Get esdl and libSDL</h2>
 
 <p> 
-  Download emacs and <a href="www.erlang.org">erlang</a>.
+  Configure github and setup your ssh keys if you want to be able push
+  patches to github and us.
+  </br>
+  
+  Get <a href="http://github.com/dgud/esdl/"> ESDL </a> from github,
+  clone it or get a copy.
+  <pre> git clone git@github.com:dgud/esdl.git </pre>
+  </br> 
+  
+  And get the windows developer version
+  from <a href="http://www.libsdl.org/download-1.2.php">libSDL-1.2</a>.
+  Unpack it somewhere I've put everything below c:/tools/.
+</p>
+
+<h2>Configuration</h2>
+
+<p> Setup up your .emacs and .bashrc files.
+  After this step you should be able start the rxvt and run werl 
+  and the erlang window should pop up.
+  The command which SDL.dll should return the full path to where
+  you installed SDL.dll.
+</p>
+
+<h2>Build esdl</h2>
+
+<p>
+  Build esdl:
+</p>
+<pre>
+  > ./Configure-mingw.sh
+  > mingw_build.sh
+  > # I also copy SDL.dll so that we can to run wings outside of mingw
+  > cp `which SDL.dll` priv
+</pre>
+
+<h2> Get wings and build it </h2>
+<pre> git clone git@github.com:dgud/wings.git </pre>
+<p> Build it. </p>
+<pre> 
+  > make 
+  > cd plugins_src/win32_file/ && make
+</pre>
+
+
