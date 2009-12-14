@@ -1,0 +1,30 @@
+a {  text-decoration: underline;
+     color: #821818}
+
+pre { 
+    background-color:#eeeeff;
+    padding: 3px 10px; 
+    margin-left: 80px;
+    border:1px solid #888;
+}  
+
+body *{line-height:1.4em;}
+
+li {
+    font-family: Arial, Helvetica;
+    font-size: 14px;
+    margin-left: 20px;
+}
+.style1 {
+    font-family: Arial, Helvetica;
+    font-size: 14px;
+    margin-left: 80px;
+}
+.style2 {
+    color: #821818;
+    font-weight: bold;
+    font-family: Arial, Helvetica;
+    font-size:16px;
+    margin-left: 40px;    
+}
+

@@ -1,71 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
+        "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+ <head>
+   <title>Setting up a windows programing configuration</title>
+   
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <link rel="stylesheet" type="text/css" href="style.css">
+   
+ </head>
+ <body bgcolor="white">
 
-<h2>Setting up a windows computer for wings development</h2>
+   <p class="style2">Setting up a windows computer for wings development</p>
 
-<p> These where the steps I did to get a wings system up and running on
+<p class="style1"> These where the steps I did to get a wings system up and running on
   my new windows computer.
 </p>
 
-<h2>Installing a git and mingw for windows</h2>
-<p>
-  Goto <a href="http://code.google.com/p/msysgit/downloads/list"> MsysGit </a>.
-  and msysGit-fullinstall.
-<p>
+<p class="style2">Installing a git and mingw for windows</p>
+<p class="style1">
+  Goto <a href="http://code.google.com/p/msysgit/downloads/list"> MsysGit </a>
+  and get <b>msysGit-netinstall-version</b>.
+<p class="style1">
   Why the full install? </br>
   Because it have gcc and make tools, i.e. all you need to get a decent shell, 
   compiler and make tools.
 </p>
-<p>
-  Now you can start your mingw shell with: /mysgit/msys.bat
+<p class="style1">
+  Now you can start your mingw shell with: C:\mysgit\msys.bat
 </p>
 
-<h2>Installing Erlang</h2>
+<p class="style2">Installing Erlang</p>
 
-<p> Download emacs and <a href="http://www.erlang.org">erlang</a>.</p>
+<p class="style1"> Download <a href="http://www.erlang.org">erlang</a> and run the installer.</p>
+<p class="style1"> Download <a href="ftp://ftp.gnu.org/gnu/emacs/windows/">emacs</a> and unpack it.</p>
 
-<h2>Get esdl and libSDL</h2>
+<p class="style2">Get esdl and libSDL</p>
 
-<p> 
+<p class="style1"> 
+  Create a user and fork esdl (from me) and wings (from Björn) on the github website.
+  <br>
   Configure github and setup your ssh keys if you want to be able push
   patches to github and us.
-  </br>
-  
+  </br>  
   Get <a href="http://github.com/dgud/esdl/"> ESDL </a> from github,
-  clone it or get a copy.
-  <pre> git clone git@github.com:dgud/esdl.git </pre>
-  </br> 
+  clone a copy of your fork (i.e switch dgud below with your username):
+</p>
+<pre>
+  > mdkir /c/src
+  > cd /c/src
+  > git clone git@github.com:dgud/esdl.git 
+</pre>
   
-  And get the windows developer version
-  from <a href="http://www.libsdl.org/download-1.2.php">libSDL-1.2</a>.
-  Unpack it somewhere I've put everything below c:/tools/.
+<p class="style1">
+  And get the windows developer version of SDL from <a href="http://www.libsdl.org/download-1.2.php">libSDL-1.2</a>.
+  Unpack it somewhere, I've put the tools below <b>c:/tools/</b>.
 </p>
 
-<h2>Configuration</h2>
+<pre>
+  > cd /c/tools/
+  > tar zxf SDL-devel-1.2.14-mingw32.tar.gz
+</pre>
 
-<p> Setup up your .emacs and .bashrc files.
-  After this step you should be able start the rxvt and run werl 
-  and the erlang window should pop up.
-  The command which SDL.dll should return the full path to where
-  you installed SDL.dll.
+<p class="style2">Configuration</p>
+
+<p class="style1"> Setup up your <a href=".bashrc">.bashrc</a>
+  and <a href=".emacs">.emacs</a> files.  After this step you should
+  be able start the rxvt and run werl and the erlang window should pop
+  up.  The command <i>which SDL.dll</i> should return the full path to where
+  you installed <i>SDL.dll</i>.
 </p>
 
-<h2>Build esdl</h2>
+<p class="style2">Build esdl</p>
 
-<p>
+<p class="style1">
   Build esdl:
 </p>
 <pre>
+  > cd esdl
   > ./Configure-mingw.sh
   > mingw_build.sh
   > # I also copy SDL.dll so that we can to run wings outside of mingw
   > cp `which SDL.dll` priv
 </pre>
 
-<h2> Get wings and build it </h2>
-<pre> git clone git@github.com:dgud/wings.git </pre>
-<p> Build it. </p>
-<pre> 
+<p class="style2"> Get a copy of your fork of wings and build it </p>
+<pre>
+  > cd /c/src/
+  > git clone git@github.com:dgud/wings.git 
+</pre>
+<p class="style1"> Build it. </p>
+<pre>
+  > wings
   > make 
   > cd plugins_src/win32_file/ && make
+  > w1 
 </pre>
+
+</body>
+</html>
 
 

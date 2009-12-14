@@ -1,0 +1,448 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>wpc_ex1.erl</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #000000;
+        background-color: #ffffff;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #b22222;
+      }
+      .constant {
+        /* font-lock-constant-face */
+        color: #5f9ea0;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #0000ff;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #a020f0;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #bc8f8f;
+      }
+      .type {
+        /* font-lock-type-face */
+        color: #228b22;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #b8860b;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% File    : wpc_ex1.erl
+%%% Author  : Dan Gudmundsson  dangud(a)gmail.com
+%%%
+%%% Description : An example of how to write simple exporter plugin to wings
+%%%               It's a binary export of all triangles it includes normals and
+%%%               uv-coordinates.
+%%%
+%%%               For an example of how to create textual format take look at
+%%%               wpc_wrl.erl which is pretty short.
+%%%
+%%% Created : 11 Mar 2005 by Dan Gudmundsson
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+</span>
+<span class="comment">%% Welcome to the wonderful world of erlang boys and girls.
+%% Put this file in dir wings/plugins_src/import_export/
+%% Add the file to the Makefile 
+%% invoke make and restart wings..and voila a new exporter have appeared
+</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Fileformat of the created files:
+%%
+%%  Everything is 32 bits little endian, integers and floats
+%%  all 'SizeOf' contains the number of bytes
+%%  The 'Size Of Name' includes an ending \0
+%%
+%%  We start of with a header chunk of 128 bytes size, it contains:
+%%  a MAGICNUMBER, 2 spare bytes, Size of RawVertexChunk  and extra info bytes
+%%  16#E15E 16#</span>0000<span class="comment"> TotSizeOfVertexData + 120 bytes of creation info
+%%
+%%  Directly after the header comes 'TotSizeOfVertexData' bytes.
+%%  It contains raw vertex data chunk for every object. 
+%%     (each triangle looks like)
+%%     V1x,V1y,V1z,N1x,N1y,N1z,S1,T1
+%%     V2x,V2y,V2z,N2x,N2y,N2z,S2,T2
+%%     V3x,V3y,V3z,N3x,N3y,N3z,S3,T3
+%%  i.e. each Vertex have 8*4=32 bytes of info and each triangle have 32*3 bytes.
+%% 
+%%  After the vertexchunk comes a materialchunk it looks like this: 
+%%  SizeOfMaterialChunk (in bytes, 32bits little endian)
+%%  SizeOfMatname MatName\0
+%%          DiffuseRGBA  
+%%          AmbientRGBA  
+%%          SpecularRGBA 
+%%          EmissionRGBA 
+%%          Shininess (float between 0.0-1.0)
+%%          NumberOfTextureImages     
+%%             SizeOfImageTypeName ImageTypeName\0 SizeOfFileName FileName\0
+%%             SizeOfImageTypeName ImageTypeName\0 SizeOfFileName FileName\0
+%%           Where ImageType is string describing the file i.e. diffuse,gloss,bump
+%%  SizeOfMatName MatName2\0
+%%     ....
+%%
+%%  And the last block contains object information, each object is separated
+%%  per material, so each object may contain several parts.
+%%  A StartVertex of Zero means the that the block starts at VertexChunk
+%%  
+%%  TotSizeOfObjectChunk
+%%  SizeOfThisObjectChunk SizeOfObjectName ObjectName\0 
+%%      NumberOfMeshesInObject
+%%        SizeOfMatName MatName\0 StartVertex NoOfVertices
+%%        SizeOfMatName MatName\0 StartVertex NoOfVertices
+%%        ....
+%%  SizeOfThisObjectChunk SizeOfObjectName ObjectName\0 
+%%      NumberOfMeshesInObject
+%%        SizeOfMatName MatName\0 StartVertex NoOfVertices
+%%        SizeOfMatName MatName\0 StartVertex NoOfVertices
+%%        ....
+%%
+%%  Comments about the format, I have choosen this because if the user
+%%  ignores everything about materials and objects, it's very simple
+%%  to parse. Read vertexchunk size in bytes 4-8 (an integer) skip
+%%  120 bytes and read the vertex chunk and skip everything after 
+%%  the vertexchunk size of bytes.
+</span>
+<span class="comment">%%  I used the following (erlang) opengl vbo code when testing the exporter:
+%%
+%%     [Buff] = gl:genBuffers(1),
+%%     gl:bindBuffer(?GL_ARRAY_BUFFER,Buff),
+%%     gl:bufferData(?GL_ARRAY_BUFFER, size(DataChunk), DataChunk, ?GL_STATIC_DRAW),
+%%     gl:vertexPointer(3, ?GL_FLOAT,  8*4, 0),
+%%     gl:normalPointer(?GL_FLOAT,     8*4, 3*4),
+%%     gl:texCoordPointer(2,?GL_FLOAT, 8*4, 6*4),
+%%    
+%%     %% The acutal Drawing code is
+%%      gl:enableClientState(?GL_VERTEX_ARRAY),
+%%      gl:enableClientState(?GL_NORMAL_ARRAY),
+%%      gl:enableClientState(?GL_TEXTURE_COORD_ARRAY),
+%%      foreach(fun({Mat,First,Sz}) -&gt;
+%%               set_mat(Mat,Mats),
+%%               gl:bindBuffer(?GL_ARRAY_BUFFER,Buff),
+%%               gl:drawArrays(?GL_TRIANGLES, First, Sz),
+%%               gl:bindBuffer(?GL_ARRAY_BUFFER,0)
+%%              end, ObjRefs),
+%%      gl:disableClientState(?GL_TEXTURE_COORD_ARRAY),
+%%      gl:disableClientState(?GL_VERTEX_ARRAY),
+%%      gl:disableClientState(?GL_NORMAL_ARRAY)
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+</span>
+
+<span class="comment">%% Now lets get on with the implementation of the exporter.
+</span>
+<span class="comment">%% Module declaration, it defines the name of the this module.
+%% and how it is accessed from other modules, must be the same
+%% as the filename. Also for wings to find plugin it must start
+%% with 'wpc_'
+</span><span class="function-name">-module</span>(wpc_ex1).
+
+<span class="comment">%% -export() defines which functions can be accessed from
+%% other modules.
+%% These are the functions that wings will call and must be exported
+</span><span class="function-name">-export</span>([init/0, menu/2, command/2]).
+
+<span class="comment">%% Importing can viewed as a shortcut that way we don't have write
+%% the module 'lists' before each call to foreach,foldl,map
+</span><span class="function-name">-import</span>(lists, [foreach/2, foldl/3, map/2, reverse/1]).
+<span class="comment">%% proplists is really long to type import the used function
+</span><span class="function-name">-import</span>(proplists, [get_value/2,get_value/3]).
+
+<span class="comment">%% Some include files.
+</span><span class="function-name">-include</span>(<span class="string">"e3d.hrl"</span>).
+<span class="function-name">-include</span>(<span class="string">"e3d_image.hrl"</span>).
+
+<span class="comment">%% A define loooks like this.
+</span><span class="function-name">-define</span>(<span class="constant">EXTENSION</span>, wex1).
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Wings callback functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+</span>
+<span class="comment">%% This is first function that wings will call when wings starts, we
+%% don't have to do any initialization work, just return true.
+</span><span class="function-name">init</span>() -&gt;
+   true.
+
+<span class="comment">%% Menu, these functions will be called each time the user opens
+%% a menu from wings.
+</span>
+<span class="comment">%% We want to add a menu entry in export menu at the bottom
+</span><span class="function-name">menu</span>({file, export}, <span class="variable-name">Menu</span>) -&gt;
+   <span class="variable-name">Menu</span> ++ [{<span class="string">"Example exporter (.wex1)..."</span>, ?<span class="constant">EXTENSION</span>, [option]}];
+<span class="comment">%% We don't care about other menues.
+</span><span class="function-name">menu</span>(<span class="variable-name">_</span>, <span class="variable-name">Menu</span>) -&gt;<span class="function-name"> </span><span class="variable-name">Menu</span>.
+
+<span class="comment">%% Command, these functions will be invoked by wings when a command
+%% is invoke from the user, either by a menu or shortcut.
+</span>
+<span class="comment">%% Lets export the objects if our command was invoked.
+</span><span class="function-name">command</span>({file,{export,{?<span class="constant">EXTENSION</span>,<span class="variable-name">Ask</span>}}}, <span class="variable-name">St</span>) -&gt;
+   init_export(<span class="variable-name">Ask</span>, <span class="variable-name">St</span>);
+<span class="comment">%% Skip all other commands..
+</span><span class="function-name">command</span>(<span class="variable-name">_</span>, <span class="variable-name">_</span>) -&gt;<span class="function-name"> </span>next.
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Exporter initialization functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+</span>
+<span class="comment">%% If Ask is an atom the user wants to edit the options
+%% open the option dialog.
+</span>
+<span class="comment">%% We also define and give wpa:dialog a function to be invoked
+%% with the result, that function just restarts the export with the
+%% options.
+</span><span class="function-name">init_export</span>(<span class="variable-name">Ask</span>, <span class="variable-name">_</span>) <span class="keyword">when</span> <span class="constant">is_atom</span>(<span class="variable-name">Ask</span>) -&gt;
+   <span class="variable-name">Result</span> = <span class="keyword">fun</span>(<span class="variable-name">Options</span>) -&gt;
+                    {file,{export,{?<span class="constant">EXTENSION</span>,<span class="variable-name">Options</span>}}}
+            <span class="keyword">end</span>,
+   <span class="comment">%% We want tga to be the default texture image format
+</span>   wpa:pref_set_default(?<span class="constant">MODULE</span>, default_filetype, <span class="string">".tga"</span>),
+   <span class="comment">%% We want to use the standard export dialog + a compress option
+</span>   <span class="comment">%% but we don't want include(uvs/normal/vertexcolor) options exclude them 
+</span>   <span class="variable-name">ExcludeOptions</span> = [include_uvs,include_normals, include_colors],
+   <span class="variable-name">Dialog</span> = [wpa:dialog_template(?<span class="constant">MODULE</span>, export,<span class="variable-name">ExcludeOptions</span>)],
+   <span class="comment">%% Everything done display the dialog
+</span>   wpa:dialog(<span class="variable-name">Ask</span>, <span class="string">"Export Options"</span>, <span class="variable-name">Dialog</span>, <span class="variable-name">Result</span>);
+
+<span class="comment">%% Ok we where invoked with some export options, the options
+%% where either set with the dialog or picked from the preferences.
+</span><span class="function-name">init_export</span>(<span class="variable-name">Options</span>, <span class="variable-name">St</span>) -&gt;
+   <span class="comment">%% Store the options in the preferences, so that next time it will
+</span>   <span class="comment">%% be the default options.
+</span>   wpa:pref_set(?<span class="constant">MODULE</span>, <span class="variable-name">Options</span>),
+
+   <span class="comment">%% get_value/3 is an imported function (from proplists)
+</span>   <span class="variable-name">SubDivs</span> = get_value(subdivisions, <span class="variable-name">Options</span>, 0),
+   <span class="comment">%% Create the export options
+</span>   <span class="variable-name">ExportOpts</span> = [{subdivisions, <span class="variable-name">SubDivs</span>},
+                 {tesselation,triangulate},
+                 {ext, <span class="string">".wex1"</span>},{ext_desc, <span class="string">"Example exporter"</span>}],
+
+   <span class="comment">%% Create the callback function which will be called from wings,
+</span>   <span class="comment">%% it takes 2 arguments FileName and Contents
+</span>   <span class="variable-name">ExportFun</span> =
+       <span class="keyword">fun</span>(<span class="variable-name">Filename</span>, <span class="variable-name">Contents</span>) -&gt;
+               export_file(<span class="variable-name">Filename</span>, <span class="variable-name">Contents</span>, <span class="variable-name">Options</span>)
+       <span class="keyword">end</span>,
+   <span class="comment">%% Call wpa:export which will subdivide and triangulate the meshes
+</span>   <span class="comment">%% and convert wings internal datastructures to a e3d mesh (see
+</span>   <span class="comment">%% e3d.hrl) then it will call the callback function 'ExportFun'
+</span>   wpa:export(<span class="variable-name">ExportOpts</span>, <span class="variable-name">ExportFun</span>, <span class="variable-name">St</span>).
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  The real export code comes here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+</span>
+<span class="function-name">export_file</span>(<span class="variable-name">Filename</span>, <span class="variable-name">Data0</span> = #<span class="type">e3d_file</span>{}, <span class="variable-name">Options</span>) -&gt;
+   <span class="comment">%% Transform data i.e. scale and/or rotate of Z
+</span>   <span class="variable-name">Transform</span> = wpa:export_matrix(<span class="variable-name">Options</span>),
+   <span class="variable-name">Data1</span> = e3d_file:transform(<span class="variable-name">Data0</span>, <span class="variable-name">Transform</span>),
+
+   <span class="comment">%% Export all textures..
+</span>   <span class="variable-name">Filetype</span> = get_value(default_filetype, <span class="variable-name">Options</span>, <span class="string">".tga"</span>),
+   <span class="variable-name">Data</span> = wpa:save_images(<span class="variable-name">Data1</span>, filename:dirname(<span class="variable-name">Filename</span>), <span class="variable-name">Filetype</span>),
+
+   <span class="comment">%% Get the stuff we need from Data
+</span>   #<span class="type">e3d_file</span>{objs=<span class="variable-name">Objs</span>,mat=<span class="variable-name">Materials</span>,creator=<span class="variable-name">Creator</span>} = <span class="variable-name">Data</span>,
+
+   <span class="keyword">try</span>
+       <span class="comment">%% Create the raw mesh chunks
+</span>       {<span class="variable-name">ObjInfo</span>,<span class="variable-name">ObjData</span>} =  <span class="comment">%% Foreach Object in objs 
+</span>               foldl(<span class="keyword">fun</span>(#<span class="type">e3d_object</span>{obj=<span class="variable-name">Object</span>,name=<span class="variable-name">Name</span>}, {<span class="variable-name">ObjInfo</span>,<span class="variable-name">ObjData</span>}) -&gt;
+                             <span class="comment">%% Calculate smooth normals per vertex
+</span>                             <span class="variable-name">ObjWithNormals</span> = e3d_mesh:vertex_normals(<span class="variable-name">Object</span>),
+                             <span class="comment">%% Split the object per material
+</span>                             <span class="variable-name">Meshes</span> = e3d_mesh:split_by_material(<span class="variable-name">ObjWithNormals</span>),
+                             <span class="comment">%% Foreach Mesh in Meshes, create the Info and data
+</span>                             {<span class="variable-name">MeshesInfo</span>,<span class="variable-name">MeshesData</span>} 
+                                 = foldl(<span class="keyword">fun</span>(<span class="variable-name">Mesh</span>, {<span class="variable-name">MIIn</span>,<span class="variable-name">MDin</span>}) -&gt;
+                                                 <span class="comment">%% Each object have Info and Data
+</span>                                                 {<span class="variable-name">MI</span>,<span class="variable-name">MD</span>} = export_object(<span class="variable-name">Mesh</span>),
+                                                 <span class="comment">%% Add it to the rest
+</span>                                                 {[<span class="variable-name">MI</span>|<span class="variable-name">MIIn</span>],[<span class="variable-name">MD</span>|<span class="variable-name">MDin</span>]}
+                                         <span class="keyword">end</span>, 
+                                         {[],<span class="variable-name">ObjData</span>}, <span class="comment">%% Output params
+</span>                                         <span class="variable-name">Meshes</span>), <span class="comment">%% Loop over all meshes.
+</span>                             <span class="comment">%% Rember the Name and MeshesInfo and the data
+</span>                             {[{<span class="variable-name">Name</span>,<span class="variable-name">MeshesInfo</span>}|<span class="variable-name">ObjInfo</span>],<span class="variable-name">MeshesData</span>}
+                     <span class="keyword">end</span>, {[],[]}, <span class="variable-name">Objs</span>),
+
+       <span class="comment">%% Add all meshes together
+</span>       <span class="variable-name">DataChunk</span> = <span class="keyword">list_to_binary</span>(<span class="variable-name">ObjData</span>),
+       
+       <span class="comment">%% Convert Creator string to binary
+</span>       <span class="variable-name">CreatorBin</span>  = <span class="keyword">list_to_binary</span>(<span class="variable-name">Creator</span>),
+       <span class="comment">%% Create the header chunk, init bytes, create info and fill up with \0
+</span>       <span class="variable-name">HeaderChunk</span> = &lt;&lt;16#<span class="variable-name">E15E</span>:16/little,16#0000:16/little,(<span class="keyword">size</span>(<span class="variable-name">DataChunk</span>)):32/little,
+                      <span class="variable-name">CreatorBin</span>/binary, 0:((120-<span class="keyword">size</span>(<span class="variable-name">CreatorBin</span>))*8)&gt;&gt;,
+       
+       <span class="comment">%% Create the material chunk
+</span>       <span class="variable-name">MaterialChunk</span> = export_materials(<span class="variable-name">Materials</span>,[]),
+       <span class="comment">%% Create Object reference chunk
+</span>       <span class="variable-name">ObjectRefChunk</span> = export_object_refs(<span class="variable-name">ObjInfo</span>, 0, []),
+
+       <span class="comment">%% Add it all together..
+</span>       <span class="variable-name">FileContents</span> = &lt;&lt;<span class="variable-name">HeaderChunk</span>/binary,<span class="variable-name">DataChunk</span>/binary,
+                       (<span class="keyword">size</span>(<span class="variable-name">MaterialChunk</span>)):32/little,<span class="variable-name">MaterialChunk</span>/binary,
+                       (<span class="keyword">size</span>(<span class="variable-name">ObjectRefChunk</span>)):32/little,<span class="variable-name">ObjectRefChunk</span>/binary&gt;&gt;,
+       <span class="comment">%% And write the lot to the file
+</span>       ok = file:write_file(<span class="variable-name">Filename</span>, <span class="variable-name">FileContents</span>)
+
+   <span class="keyword">catch</span>  <span class="comment">%% Some error handling
+</span>       throw:<span class="variable-name">Error</span> -&gt;
+           io:format(<span class="string">"Exporter failed: ~p~n"</span>, [<span class="variable-name">Error</span>]),
+           <span class="variable-name">ErrStr</span> = io_lib:format(<span class="string">"Exporter failed: ~s"</span>, [<span class="variable-name">Error</span>]),
+           wings_u:error(lists:flatten(<span class="variable-name">ErrStr</span>));
+         <span class="variable-name">_</span>:<span class="variable-name">Error</span> -&gt;
+           io:format(<span class="string">"Exporter crashed: ~p ~p~n"</span>, [<span class="variable-name">Error</span>, erlang:get_stacktrace()]),
+           <span class="variable-name">ErrStr</span> = io_lib:format(<span class="string">"Exporter crashed: ~W"</span>, [<span class="variable-name">Error</span>,4]),
+           wings_u:error(lists:flatten(<span class="variable-name">ErrStr</span>))
+   <span class="keyword">end</span>.
+
+<span class="comment">%% At last we can see the end of everything..
+</span><span class="function-name">export_object</span>(#<span class="type">e3d_mesh</span>{vs=<span class="variable-name">Vs0</span>,ns=<span class="variable-name">Ns0</span>,tx=<span class="variable-name">Uv0</span>,fs=<span class="variable-name">Fs</span>}) -&gt;
+    <span class="comment">%% Do some initialization,
+</span>    <span class="comment">%% convert the lists to a tuple of floats
+</span>    <span class="variable-name">Vs</span> = convert_to_binary(<span class="variable-name">Vs0</span>, []),
+    <span class="variable-name">Ns</span> = convert_to_binary(<span class="variable-name">Ns0</span>, []),
+    <span class="variable-name">Uv</span> = convert_to_binary(<span class="variable-name">Uv0</span>, []),
+    <span class="comment">%% Here we go again for each face in Fs
+</span>    <span class="comment">%% Create a binary that looks like
+</span>    <span class="comment">%% &lt;&lt;V1x,V1y,V1z,N1x,N1y,N1z,U1,V1
+</span>    <span class="comment">%%   V2x,V2y,V2z,N2x,N2y,N2z,U2,V2
+</span>    <span class="comment">%%   V3x,V3y,V3z,N3x,N3y,N3z,U3,V3&gt;&gt;
+</span>    <span class="variable-name">ListOfBinFs</span> =
+        map(<span class="keyword">fun</span>(#<span class="type">e3d_face</span>{vs=[<span class="variable-name">V1</span>,<span class="variable-name">V2</span>,<span class="variable-name">V3</span>],ns=[<span class="variable-name">N1</span>,<span class="variable-name">N2</span>,<span class="variable-name">N3</span>],tx=[<span class="variable-name">UV1</span>,<span class="variable-name">UV2</span>,<span class="variable-name">UV3</span>]}) -&gt;
+                    &lt;&lt;(idx(<span class="variable-name">V1</span>,<span class="variable-name">Vs</span>))/binary,(idx(<span class="variable-name">N1</span>,<span class="variable-name">Ns</span>))/binary,(idx(<span class="variable-name">UV1</span>,<span class="variable-name">Uv</span>))/binary,
+                     (idx(<span class="variable-name">V2</span>,<span class="variable-name">Vs</span>))/binary,(idx(<span class="variable-name">N2</span>,<span class="variable-name">Ns</span>))/binary,(idx(<span class="variable-name">UV2</span>,<span class="variable-name">Uv</span>))/binary,
+                     (idx(<span class="variable-name">V3</span>,<span class="variable-name">Vs</span>))/binary,(idx(<span class="variable-name">N3</span>,<span class="variable-name">Ns</span>))/binary,(idx(<span class="variable-name">UV3</span>,<span class="variable-name">Uv</span>))/binary&gt;&gt;;
+               (#<span class="type">e3d_face</span>{tx=[]}) -&gt;
+                    <span class="keyword">throw</span>(<span class="string">"No UV coordinates available"</span>);
+               (<span class="variable-name">_</span>) -&gt;<span class="function-name"> </span><span class="comment">% Proberly not triangulated correctly
+</span>                    <span class="keyword">throw</span>(<span class="string">"Model not triangulated, report BUG in wings trianglutor"</span>)
+            <span class="keyword">end</span>, <span class="variable-name">Fs</span>),
+    <span class="comment">%% So we got a list of binaries convert that to a big binary..
+</span>    <span class="variable-name">BinFs</span> = <span class="keyword">list_to_binary</span>(<span class="variable-name">ListOfBinFs</span>),
+    
+    <span class="comment">%% Get the Material name since we have done a split by material
+</span>    <span class="comment">%% each face will have the same material so pick the first faces
+</span>    <span class="comment">%% material..
+</span>    [#<span class="type">e3d_face</span>{mat=[<span class="variable-name">Material</span>|<span class="variable-name">_</span>]}|<span class="variable-name">_</span>] = <span class="variable-name">Fs</span>,
+    <span class="comment">%% Return the needed information {material, NoOfTriangles} and the binary
+</span>    {{<span class="variable-name">Material</span>,<span class="keyword">length</span>(<span class="variable-name">ListOfBinFs</span>)},<span class="variable-name">BinFs</span>}.
+
+<span class="comment">%% element is 1 counted, e3d starts at 0..arrg..add one before looking up the object..
+</span><span class="function-name">idx</span>(<span class="variable-name">Idx</span>, <span class="variable-name">Table</span>) -&gt;
+   <span class="keyword">element</span>(<span class="variable-name">Idx</span>+1, <span class="variable-name">Table</span>).
+
+<span class="comment">%% This converts a list of tuples of floats to a tuple of binaries.
+%% It's much faster do element(Index,Table) than a list search operation.
+</span><span class="function-name">convert_to_binary</span>([{<span class="variable-name">X</span>,<span class="variable-name">Y</span>,<span class="variable-name">Z</span>}|<span class="variable-name">Rest</span>], <span class="variable-name">Prev</span>) -&gt;
+   <span class="variable-name">Converted</span> = &lt;&lt;<span class="variable-name">X</span>:32/float-little,<span class="variable-name">Y</span>:32/float-little,<span class="variable-name">Z</span>:32/float-little&gt;&gt;,
+   convert_to_binary(<span class="variable-name">Rest</span>, [<span class="variable-name">Converted</span>|<span class="variable-name">Prev</span>]);
+<span class="function-name">convert_to_binary</span>([{<span class="variable-name">U</span>,<span class="variable-name">V</span>}|<span class="variable-name">Rest</span>], <span class="variable-name">Prev</span>) -&gt;
+   <span class="variable-name">Converted</span> = &lt;&lt;<span class="variable-name">U</span>:32/float-little,<span class="variable-name">V</span>:32/float-little&gt;&gt;,
+   convert_to_binary(<span class="variable-name">Rest</span>, [<span class="variable-name">Converted</span>|<span class="variable-name">Prev</span>]);
+<span class="function-name">convert_to_binary</span>([],<span class="variable-name">Done</span>) -&gt;
+   <span class="variable-name">Ordered</span> = reverse(<span class="variable-name">Done</span>),
+   <span class="keyword">list_to_tuple</span>(<span class="variable-name">Ordered</span>).
+
+<span class="comment">%% With the first material
+</span><span class="function-name">export_materials</span>([{<span class="variable-name">Name</span>,<span class="variable-name">Mat</span>}|<span class="variable-name">Mats</span>],<span class="variable-name">All</span>) -&gt;
+    <span class="comment">%% Get all info we need
+</span>    <span class="variable-name">NameBin</span> = name_to_binary(<span class="variable-name">Name</span>),
+    <span class="variable-name">OpMat</span> = get_value(opengl, <span class="variable-name">Mat</span>),
+    {<span class="variable-name">DR</span>,<span class="variable-name">DG</span>,<span class="variable-name">DB</span>,<span class="variable-name">DA</span>} = get_value(diffuse,<span class="variable-name">OpMat</span>),
+    {<span class="variable-name">AR</span>,<span class="variable-name">AG</span>,<span class="variable-name">AB</span>,<span class="variable-name">AA</span>} = get_value(ambient,<span class="variable-name">OpMat</span>),
+    {<span class="variable-name">SR</span>,<span class="variable-name">SG</span>,<span class="variable-name">SB</span>,<span class="variable-name">SA</span>} = get_value(specular,<span class="variable-name">OpMat</span>),
+    {<span class="variable-name">ER</span>,<span class="variable-name">EG</span>,<span class="variable-name">EB</span>,<span class="variable-name">EA</span>} = get_value(emission,<span class="variable-name">OpMat</span>),
+    <span class="variable-name">Sh</span> = get_value(shininess,<span class="variable-name">OpMat</span>),
+    <span class="comment">%% Get the texture images
+</span>    <span class="variable-name">Maps</span> = export_images(get_value(maps, <span class="variable-name">Mat</span>, []),[]), 
+    <span class="comment">%% Make the data for this material 
+</span>    <span class="variable-name">MatBin</span> = &lt;&lt;(<span class="keyword">size</span>(<span class="variable-name">NameBin</span>)+1):32/little,<span class="variable-name">NameBin</span>/binary,0:8,
+              <span class="variable-name">DR</span>:32/float,<span class="variable-name">DG</span>:32/float,<span class="variable-name">DB</span>:32/float,<span class="variable-name">DA</span>:32/float,
+              <span class="variable-name">AR</span>:32/float,<span class="variable-name">AG</span>:32/float,<span class="variable-name">AB</span>:32/float,<span class="variable-name">AA</span>:32/float,
+              <span class="variable-name">SR</span>:32/float,<span class="variable-name">SG</span>:32/float,<span class="variable-name">SB</span>:32/float,<span class="variable-name">SA</span>:32/float,
+              <span class="variable-name">ER</span>:32/float,<span class="variable-name">EG</span>:32/float,<span class="variable-name">EB</span>:32/float,<span class="variable-name">EA</span>:32/float,
+              <span class="variable-name">Sh</span>:32/float, <span class="variable-name">Maps</span>/binary&gt;&gt;,
+    <span class="comment">%% Remember this material and handle the rest of the materials
+</span>    export_materials(<span class="variable-name">Mats</span>,[<span class="variable-name">MatBin</span>|<span class="variable-name">All</span>]);
+<span class="comment">%% We have transformed all materials, create the materialchunk.
+</span><span class="function-name">export_materials</span>([],<span class="variable-name">All</span>) -&gt;
+    <span class="keyword">list_to_binary</span>(reverse(<span class="variable-name">All</span>)).
+
+<span class="comment">%% Export images loops through each texture image and creates a file
+%% reference per image. The actual image is already exported to
+%% separate files
+</span><span class="function-name">export_images</span>([],<span class="variable-name">All</span>) -&gt;
+    <span class="keyword">list_to_binary</span>([&lt;&lt;(<span class="keyword">length</span>(<span class="variable-name">All</span>)):32/little&gt;&gt;|<span class="variable-name">All</span>]);
+<span class="function-name">export_images</span>([{<span class="variable-name">Type</span>,#<span class="type">e3d_image</span>{filename=<span class="variable-name">File</span>}}|<span class="variable-name">Maps</span>],<span class="variable-name">All</span>) -&gt;
+    <span class="variable-name">TypeBin</span> = name_to_binary(<span class="variable-name">Type</span>),
+    <span class="variable-name">FileBin</span> = name_to_binary(<span class="variable-name">File</span>),
+    <span class="comment">%% The raw-image data is available in #e3d_image{}, so If you want
+</span>    <span class="comment">%% the actual image to be included in the exported file, you could
+</span>    <span class="comment">%% add it here instead of a file reference.
+</span>    <span class="variable-name">ImageRef</span> = &lt;&lt;(<span class="keyword">size</span>(<span class="variable-name">TypeBin</span>)+1):32/little,<span class="variable-name">TypeBin</span>/binary, 0:8,
+                (<span class="keyword">size</span>(<span class="variable-name">FileBin</span>)+1):32/little,<span class="variable-name">FileBin</span>/binary, 0:8&gt;&gt;,
+    export_images(<span class="variable-name">Maps</span>, [<span class="variable-name">ImageRef</span>|<span class="variable-name">All</span>]).
+
+<span class="comment">%% Make a object chunk per object
+</span><span class="function-name">export_object_refs</span>([{<span class="variable-name">ObjName</span>,<span class="variable-name">ObjInfo</span>}|<span class="variable-name">Chunks</span>], <span class="variable-name">Start</span>, <span class="variable-name">Add</span>) -&gt;
+    <span class="comment">%% Collect the information
+</span>    {<span class="variable-name">NextPos</span>,<span class="variable-name">Mats</span>} = export_refs(<span class="variable-name">ObjInfo</span>,<span class="variable-name">Start</span>,[]),
+    <span class="variable-name">ObjNameBin</span> = name_to_binary(<span class="variable-name">ObjName</span>),
+    <span class="comment">%% Create the binary
+</span>    <span class="variable-name">ObjectRef</span> = &lt;&lt;(<span class="keyword">size</span>(<span class="variable-name">ObjNameBin</span>)+1):32/little,<span class="variable-name">ObjNameBin</span>/binary,0:8,
+                 (<span class="keyword">length</span>(<span class="variable-name">Mats</span>)):32/little,(<span class="keyword">list_to_binary</span>(<span class="variable-name">Mats</span>))/binary&gt;&gt;,
+    <span class="variable-name">Size</span>  = &lt;&lt;(<span class="keyword">size</span>(<span class="variable-name">ObjectRef</span>)):32/little&gt;&gt;,
+    <span class="comment">%% Add the size in backwards order, the list is reverse in the last step.
+</span>    export_object_refs(<span class="variable-name">Chunks</span>, <span class="variable-name">NextPos</span>, [<span class="variable-name">ObjectRef</span>,<span class="variable-name">Size</span>|<span class="variable-name">Add</span>]);
+<span class="function-name">export_object_refs</span>([], <span class="variable-name">_</span>, <span class="variable-name">ChunkList</span>) -&gt;
+    <span class="keyword">list_to_binary</span>(reverse(<span class="variable-name">ChunkList</span>)).
+
+<span class="comment">%% Foreach data chunk create a reference point: matName,startVertex,NoOfVertices
+</span><span class="function-name">export_refs</span>([{<span class="variable-name">MatName</span>,<span class="variable-name">Triangles</span>}|<span class="variable-name">Next</span>],<span class="variable-name">Start</span>,<span class="variable-name">All</span>) -&gt;
+    <span class="variable-name">Mat</span> = name_to_binary(<span class="variable-name">MatName</span>),
+    <span class="variable-name">Verts</span> = <span class="variable-name">Triangles</span>*3,
+    <span class="variable-name">New</span> = &lt;&lt;(<span class="keyword">size</span>(<span class="variable-name">Mat</span>)+1):32/little,<span class="variable-name">Mat</span>/binary,0:8,<span class="variable-name">Start</span>:32/little,<span class="variable-name">Verts</span>:32/little&gt;&gt;,
+    export_refs(<span class="variable-name">Next</span>, <span class="variable-name">Start</span>+<span class="variable-name">Verts</span>, [<span class="variable-name">New</span>|<span class="variable-name">All</span>]);
+<span class="function-name">export_refs</span>([],<span class="variable-name">End</span>,<span class="variable-name">All</span>) -&gt;
+    <span class="comment">%% Remember to reverse the list so order is correct
+</span>    {<span class="variable-name">End</span>,lists:reverse(<span class="variable-name">All</span>)}.
+
+<span class="comment">%% A small help function.
+</span><span class="function-name">name_to_binary</span>(<span class="variable-name">Name</span>) <span class="keyword">when</span> <span class="constant">is_atom</span>(<span class="variable-name">Name</span>) -&gt;
+    <span class="keyword">list_to_binary</span>(<span class="keyword">atom_to_list</span>(<span class="variable-name">Name</span>));
+<span class="function-name">name_to_binary</span>(<span class="variable-name">Name</span>) <span class="keyword">when</span> <span class="constant">is_list</span>(<span class="variable-name">Name</span>) -&gt;
+    <span class="keyword">list_to_binary</span>(<span class="variable-name">Name</span>);
+<span class="function-name">name_to_binary</span>(<span class="variable-name">Name</span>) <span class="keyword">when</span> <span class="constant">is_binary</span>(<span class="variable-name">Name</span>) -&gt;
+    <span class="variable-name">Name</span>.
+
+</pre>
+  </body>
+</html>
