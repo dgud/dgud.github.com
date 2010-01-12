@@ -79,7 +79,8 @@
  '(inhibit-startup-screen t)
  '(show-paren-mode t nil (paren))
  '(tool-bar-mode nil)
- '(transient-mark-mode t))
+ '(transient-mark-mode t)
+ '(use-file-dialog nil))
 
 (custom-set-faces
   ;; custom-set-faces was added by Custom.
