@@ -6,10 +6,11 @@ alias po='popd'
 
 alias cds="cd /c/src/"
 
+WDIR="$HOME/AppData/Wings3D"
 # Start and run wings with esdl
-alias w1='werl +S1 -pa c:/src/wings/ebin -pa c:/src/esdl/ebin -run wings'
+alias w1='werl +S1 -pa c:/src/wings/ebin -pa c:/src/esdl/ebin -run wings_start start -extra $WDIR'
 # Start and run wings with wxWidgets (require a build with 'make wx')
-alias w2='werl -pa c:/src/wings/ebin -run wings'
+alias w2="werl -pa c:/src/wings/ebin -run wings_start start -extra $WDIR"
 
 export PAGER=less
 export EDITOR=emacs
