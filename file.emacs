@@ -44,10 +44,15 @@
 
 ;;;********************* ERLANG mode ******************
 
-(setq erlang-root-dir "C:/Program Files (x86)/erl5.7/")
-(setq load-path (cons  "C:/Program Files (x86)/erl5.7/lib/tools-2.6.5/emacs" load-path))
+(setq erlang-root-dir "C:/Program Files (x86)/erl5.8/")
+(setq load-path (cons  "C:/Program Files (x86)/erl5.8/lib/tools-2.6.6/emacs" load-path))
 (setq exec-path (cons "C:/Program/erl5.7/bin" exec-path))
 (require 'erlang-start)
+(require 'erlang-flymake)
+
+(add-hook 'erlang-mode-hook 'my-erlang-mode-hook)
+(defun my-erlang-mode-hook ()
+  (local-set-key "\C-cm" 'erlang-man-function))
 
 ;; Tell emacs that files with the extension .erl are erlang mode 
 (setq auto-mode-alist
