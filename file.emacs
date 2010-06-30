@@ -50,6 +50,16 @@
 (require 'erlang-start)
 (require 'erlang-flymake)
 
+(defun wings-paths () 
+  (append (list "/home/dgud/src/wings/intl_tools") 
+	  (erlang-flymake-get-code-path-dirs)))
+(setq erlang-flymake-get-code-path-dirs-function 'wings-paths)
+
+(defun wings-includes () 
+  (append (list "/home/dgud/src/wings/src" "/home/dgud/src/wings/e3d") 
+	  (erlang-flymake-get-include-dirs)))
+(setq erlang-flymake-get-include-dirs-function 'wings-includes)
+
 (add-hook 'erlang-mode-hook 'my-erlang-mode-hook)
 (defun my-erlang-mode-hook ()
   (local-set-key "\C-cm" 'erlang-man-function))
