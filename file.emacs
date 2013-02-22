@@ -44,9 +44,9 @@
 
 ;;;********************* ERLANG mode ******************
 
-(setq erlang-root-dir "C:/Program Files (x86)/erl5.8/")
-(setq load-path (cons  "C:/Program Files (x86)/erl5.8/lib/tools-2.6.6/emacs" load-path))
-(setq exec-path (cons "C:/Program/erl5.7/bin" exec-path))
+(setq erlang-root-dir "C:/Program Files (x86)/erl5.10/")
+(setq load-path (cons  "C:/Program Files (x86)/erl5.10/lib/tools-???/emacs" load-path))
+(setq exec-path (cons "C:/Program/erl5.10/bin" exec-path))
 (require 'erlang-start)
 (require 'erlang-flymake)
 

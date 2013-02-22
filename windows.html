@@ -16,29 +16,76 @@
   my new windows computer.
 </p>
 
-<p class="style2">Installing a git and mingw for windows</p>
+<p class="style2">Installing emacs so we get a decent editor, to edit the files below</p>
+<p class="style1"> Download <a href="ftp://ftp.gnu.org/gnu/emacs/windows/">emacs</a> and unpack it.</p>
+
+<p class="style2">Installing a mingw</p>
 <p class="style1">
-  Goto <a href="http://code.google.com/p/msysgit/downloads/list"> MsysGit </a>
-  and get <b>msysGit-netinstall-version</b>.
+  First install mingw-msys from: 
+  <a href="http://sourceforge.net/projects/mingw/files/Installer/mingw-get-inst">Mingw-Msys</a>.
+</p> 
 <p class="style1">
-  Why the full install? </br>
-  Because it have gcc and make tools, i.e. all you need to get a decent shell, 
-  compiler and make tools.
+  Create a desktop shortcut, Right-Drag C:/MinGW/msys/1.0/msys.bat to the desktop.
+  I have added the following lines to my msys.bat file:
+  <pre>
+    SET HOMEDRIVE=C:
+    SET HOMEPATH=\Users\myname
+    SET HOMESHARE=\\C\Users\myname
+    SET HOME=\Users\myname
+  </pre>
+</p> 
+<p class="style1">
+  In /c/MinGW/msys/1.0/etc/ I also added last:
+  <pre>
+    source "$HOME/.bashrc"
+  </pre>
+</p> 
+
+<p class="style1">
+  I have also installed rxvt (which gives you a better terminal),
+  can be wider than 80 lines and have better (unix-like) cut-n-paste functionality.
 </p>
+<pre>
+  > mingw-get install msys-rxvt
+</pre>
 <p class="style1">
-  Now you can start your mingw shell with: 
-</p>
-<pre>C:\mysgit\msys.bat</pre>
+  Right click you msys shortcut and edit the command to run 
+</p> 
+<pre>
+  C:\MinGW\msys\1.0\msys.bat -rxvt
+</pre>
+
+<p class="style2">Installing Git For Windows</p>
+<p class="style1">
+  Download and install <a href="https://code.google.com/p/msysgit/downloads/list?q=full+installer+official+git">Git for Windows</a>.
+  I installed Git in <b>C:/opt/Git</b>
+  Setup up the paths in your .bashrc so they can find git (and emacs): 
+  I.e. edit the file: c:/users/myname/.bashrc if you have setup HOME as above.
+</p> 
+<pre>
+  export EDITOR=emacs
+  alias gitk="cmd //c /c/opt/Git/cmd/gitk.cmd"
+  PATH=/c/opt/Git/cmd:$PATH
+
+  ## Let erlang find esdl, cl, and wings 
+  ERL_LIBDIR=c:/src/
+
+  ## Setup completion
+  source /c/opt/Git/etc/git-completion.bash
+  source /c/opt/Git/etc/git-prompt.sh
+
+  PS1='--[\u@\h] \[\e[0;34m\]\W/\[\e[0;32m\]$(__git_ps1 " (%s)") $CC_VIEW\[\e[0;34m\]\[\e[0m\]--\n> '
+  export PS1
+</pre>
 
 <p class="style2">Installing Erlang</p>
 
 <p class="style1"> Download <a href="http://www.erlang.org">erlang</a> and run the installer.</p>
-<p class="style1"> Download <a href="ftp://ftp.gnu.org/gnu/emacs/windows/">emacs</a> and unpack it.</p>
 
 <p class="style2">Get esdl and libSDL</p>
 
 <p class="style1"> 
-  Create a user and fork esdl (from me) and wings (from Björn) on the github website.
+  Create a user and fork esdl (from me) and wings (from me) on the github website.
   <br>
   Configure github and setup your ssh keys if you want to be able push
   patches to github and us.
@@ -54,11 +101,11 @@
   
 <p class="style1">
   And get the windows developer version of SDL from <a href="http://www.libsdl.org/download-1.2.php">libSDL-1.2</a>.
-  Unpack it somewhere, I've put the tools below <b>c:/tools/</b>.
+  Unpack it somewhere, I've put the tools below <b>c:/opt/</b>.
 </p>
 
 <pre>
-  > cd /c/tools/
+  > cd /c/opt/
   > tar zxf SDL-devel-1.2.14-mingw32.tar.gz
 </pre>
 
@@ -91,10 +138,10 @@
 </pre>
 <p class="style1"> Build it. </p>
 <pre>
-  > wings
+  > cd wings
   > make 
   > cd plugins_src/win32_file/ && make
-  > w1 
+  > wings 
 </pre>
 
 <p class="style2">Additional components</p>

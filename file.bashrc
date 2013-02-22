@@ -4,26 +4,30 @@ alias ls='ls -F --color --show-control-chars'
 alias pp='pushd'
 alias po='popd'
 
-alias cds="cd /c/src/"
+alias gitk="cmd //c /c/opt/Git/cmd/gitk.cmd"
 
 WDIR="$HOME/AppData/Wings3D"
 # Start and run wings with esdl
-alias w1='werl +S1 -pa c:/src/wings/ebin -pa c:/src/esdl/ebin -run wings_start start -extra $WDIR'
-# Start and run wings with wxWidgets (require a build with 'make wx')
-alias w2="werl -pa c:/src/wings/ebin -run wings_start start -extra $WDIR"
+alias wings='werl -run wings_start start -extra $WDIR'
 
 export PAGER=less
 export EDITOR=emacs
 
-## Let rxvt (backspace) behave as it should
-alias rxvt="rxvt -backspacekey ^H -sl 4000 -sr -fn Courier-12 -tn msys -geometry 90x50 -e /bin/bash"
+export MAKEFLAGS=-j5
 
-PATH=/c/tools/emacs-23.1/bin/:$PATH
-PATH="/c/Program Files (x86)/erl5.7/bin":$PATH
-export PATH=/c/tools/SDL-1.2.14/bin:$PATH
+PATH=/c/opt/emacs-24.2/bin/:$PATH
+PATH=/c/opt/SDL-1.2.14/bin/:$PATH
+PATH="/c/Program Files/erl5.10/bin":$PATH
+PATH="/c/Program Files/NSIS":$PATH
+PATH=/c/opt/Git/cmd:$PATH
+export PATH
 
-export ESDL_PATH=/c/src/esdl
+export ESDL_PATH=C:/src/esdl
+export ERL_LIBS=C:/src
+export WINGS_VCREDIST=/c/Program\ Files/Microsoft\ SDKs/Windows/v7.1/Redist/VC/vcredist_x86.exe
 
-source /git/contrib/completion/git-completion.bash
-export PS1='\[\033[32m\]\u@\w\[\033[33m$(__git_ps1 " (%s)"):\n\[\033[0m\]$ '
+source /c/opt/Git/etc/git-completion.bash
+source /c/opt/Git/etc/git-prompt.sh
+PS1='--[\u@\h] \[\e[0;34m\]\W/\[\e[0;32m\]$(__git_ps1 " (%s)") $CC_VIEW\[\e[0;34m\]\[\e[0m\]--\n> '
+export PS1
 
