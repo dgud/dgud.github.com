@@ -82,7 +82,7 @@
 ;; Make sure that the bash executable can be found
 (setq explicit-shell-file-name "c:/MinGW/msys/1.0/bin/bash.exe")
 (setq shell-file-name explicit-shell-file-name)
-(setq explicit-bash.exe-args '("--noediting" "--login" "-i"))
+(setq explicit-bash.exe-args '("--noediting" "-i"))
 ;(add-to-list 'exec-path "C:/cygwin/bin")
 
 (defun pcmpl-git-commands ()
