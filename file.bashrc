@@ -1,5 +1,8 @@
 ## Bash init file
 
+set show-all-if-ambiguous on
+set expand-tilde on
+
 alias ls='ls -F --color --show-control-chars'
 alias pp='pushd'
 alias po='popd'
