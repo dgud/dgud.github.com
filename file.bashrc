@@ -29,8 +29,7 @@ export ESDL_PATH=C:/src/esdl
 export ERL_LIBS=C:/src
 export WINGS_VCREDIST=/c/Program\ Files/Microsoft\ SDKs/Windows/v7.1/Redist/VC/vcredist_x86.exe
 
-source /c/opt/Git/etc/git-completion.bash
-source /c/opt/Git/etc/git-prompt.sh
-PS1='--[\u@\h] \[\e[0;34m\]\W/\[\e[0;32m\]$(__git_ps1 " (%s)") $CC_VIEW\[\e[0;34m\]\[\e[0m\]--\n> '
-export PS1
+source /usr/share/git/completion/git-completion.bash
+source /usr/share/git/git-prompt.sh
+export PS1='\[\e[35m\]$MSYSTEM\[\e[0m\]:\[\e[32m\]\w:\[\e[35m$(__git_ps1 "%s\n>")\[\e[0m\]'
 

@@ -8,6 +8,9 @@
 (transient-mark-mode t)
 (show-paren-mode t)
 
+(require 'uniquify)
+(setq show-trailing-whitespace 't)
+
 (add-to-list 'default-frame-alist '(background-color . "grey90"))
 
 ;; Own key def's
@@ -62,6 +65,7 @@
 
 (add-hook 'erlang-mode-hook 'my-erlang-mode-hook)
 (defun my-erlang-mode-hook ()
+  (setq indent-tabs-mode nil)
   (local-set-key "\C-cm" 'erlang-man-function))
 
 ;; Tell emacs that files with the extension .erl are erlang mode 
