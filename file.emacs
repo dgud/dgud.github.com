@@ -1,4 +1,12 @@
-;; Turn on font-lock in all modes that support it
+(message "LOADING .emacs")
+(package-initialize)
+
+(require 'package)
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.org/packages/") t)
+(add-to-list 'package-archives
+             '("melpa-stable" . "http://stable.melpa.org/packages/") t)
+
 (if (fboundp 'global-font-lock-mode)
     (global-font-lock-mode t))
 
@@ -7,9 +15,13 @@
 ;; Turn on colors on marked text
 (transient-mark-mode t)
 (show-paren-mode t)
-
+(setq show-trailing-whitespace t)
 (require 'uniquify)
-(setq show-trailing-whitespace 't)
+(require 'hungry-delete)
+(ido-mode)
+
+;; Windows special to make 'make' work in wsl
+(setq process-connection-type nil)
 
 (add-to-list 'default-frame-alist '(background-color . "grey90"))
 
@@ -45,127 +57,154 @@
 
 (put 'eval-expression 'disabled nil)
 
+;; (global-flycheck-mode)
+;; (global-eldoc-mode)
+
+;; Always show diagnostics at the bottom, using 1/3 of the available space
+(add-to-list 'display-buffer-alist
+             `(,(rx bos "*Flycheck errors*" eos)
+               (display-buffer-reuse-window
+                display-buffer-in-side-window)
+               (side            . bottom)
+               (reusable-frames . visible)
+               (window-height   . 0.33)))
+
+;; Display Column limitations
+(require 'column-enforce-mode)
+(add-hook 'prog-mode-hook 'column-enforce-mode)
+(setq column-enforce-column 100)
+
+;; Enable LSP for Erlang files
+(global-unset-key (kbd "C-l"))
+(setq lsp-keymap-prefix "C-l")
+
+(require 'lsp-mode)
+
+(lsp-register-client
+ (make-lsp-client :new-connection (lsp-stdio-connection '("elp" "server"))
+                  :major-modes '(erlang-mode)
+                  :priority 0
+                  :server-id 'erlang-language-platform))
+(lsp-register-client
+ (make-lsp-client :new-connection (lsp-stdio-connection '("elp" "server"))
+                  :major-modes '(erlang-ts-mode)
+                  :priority 0
+                  :server-id 'erlang-language-platform))
+
+  ;; (setq lsp-log-io t)
+  ;; (setq lsp-log-io-allowlist-methods '("initialize"
+  ;;                                      "workspace/didChangeWatchedFiles"
+  ;;                                      "workspace/configuration"
+  ;;                                      ;; "textDocument/codeLens"
+  ;;                                      ;; "textDocument/semanticTokens/full"
+  ;;                                      ;; "textDocument/semanticTokens/full/delta"
+  ;;                                      ;; "textDocument/semanticTokens/range"
+  ;;                                      ))
+  ;; (setq lsp-io-messages-max 1000)
+
+;; Enable code completion
+(require 'company)
+(add-hook 'after-init-hook 'global-company-mode)
+
+;; Enable and configure the LSP UI Package
+(require 'lsp-ui)
+(setq lsp-ui-sideline-enable t)
+(setq lsp-ui-doc-enable t)
+;;(setq lsp-ui-doc-position 'bottom)
+(setq lsp-ui-doc-show-with-cursor nil)
+(setq lsp-enable-file-watchers nil)
+
+;; Require and enable the Yasnippet templating system
+(require 'yasnippet)
+(yas-global-mode 1)
+
+;; Enable LSP Origami Mode (for folding ranges)
+(require 'lsp-origami)
+(add-hook 'lsp-after-open-hook #'lsp-origami-try-enable)
+(add-hook 'origami-mode-hook #'lsp-origami-mode)
+(add-hook 'erlang-mode-hook #'origami-mode)
+
+;; (defun my-erl-fold ()
+;;   (save-excursion
+;;     (while (not (eobp))
+;;       (if (re-search-forward "-doc" nil 'move)
+;;           (progn
+;;             (forward-char 1)
+;;             (origami-toggle-node (current-buffer) (point)))))))
+
+;; Enable logging for lsp-mode
+;(setq lsp-log-io t)
+
+;; Which-key integration
+(require 'which-key)
+(with-eval-after-load 'lsp-mode
+  (add-hook 'lsp-mode-hook #'lsp-enable-which-key-integration))
+
 ;;;********************* ERLANG mode ******************
 
-(setq erlang-root-dir "C:/Program Files (x86)/erl5.10/")
-(setq load-path (cons  "C:/Program Files (x86)/erl5.10/lib/tools-???/emacs" load-path))
-(setq exec-path (cons "C:/Program/erl5.10/bin" exec-path))
-(require 'erlang-start)
-(require 'erlang-flymake)
+(setq load-path (cons "/home/dgud/src/emacs-erlang-ts" load-path))
+(require 'erlang-ts)
+;; (require 'erlang)
 
-(defun wings-paths () 
-  (append (list "/home/dgud/src/wings/intl_tools") 
-	  (erlang-flymake-get-code-path-dirs)))
-(setq erlang-flymake-get-code-path-dirs-function 'wings-paths)
+(add-hook 'erlang-mode-hook #'lsp)
+(add-hook 'erlang-mode-hook 'which-key-mode)
 
-(defun wings-includes () 
-  (append (list "/home/dgud/src/wings/src" "/home/dgud/src/wings/e3d") 
-	  (erlang-flymake-get-include-dirs)))
-(setq erlang-flymake-get-include-dirs-function 'wings-includes)
+(setq flycheck-erlang-include-path '("../include" "/home/dgud/src/wings/e3d"))
+(setq flycheck-erlang-library-path '("/home/dgud/src/wings/intl_tools"))
 
 (add-hook 'erlang-mode-hook 'my-erlang-mode-hook)
 (defun my-erlang-mode-hook ()
+  (local-set-key "\C-cm" 'erlang-man-function)
+  (local-set-key "\C-cs" 'tempo-template-erlang-spec)
   (setq indent-tabs-mode nil)
-  (local-set-key "\C-cm" 'erlang-man-function))
+;; (company-erlang-init)
+  )
 
 ;; Tell emacs that files with the extension .erl are erlang mode 
 (setq auto-mode-alist
-      (cons '("\\.hrl$" . erlang-mode)
-	    (cons '("\\.erl$" . erlang-mode)
+      (cons '("\\.hrl$" . erlang-ts-mode)
+	    (cons '("\\.erl$" . erlang-ts-mode)
 		  auto-mode-alist)))
-
 ;;;; ******************** ERLANG ends *****************
 
 (autoload 'glsl-mode "glsl-mode" nil t)
 (setq auto-mode-alist (cons '("\\.vs$" . glsl-mode) auto-mode-alist))
 (setq auto-mode-alist (cons '("\\.fs$" . glsl-mode) auto-mode-alist))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; SHELL with git completion
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Make sure that the bash executable can be found
-(setq explicit-shell-file-name "c:/MinGW/msys/1.0/bin/bash.exe")
-(setq shell-file-name explicit-shell-file-name)
-(setq explicit-bash.exe-args '("--noediting" "-i"))
-;(add-to-list 'exec-path "C:/cygwin/bin")
-
-(defun pcmpl-git-commands ()
-  "Return the most common git commands by parsing the git output."
-  (with-temp-buffer
-    (call-process-shell-command "git" nil (current-buffer) nil "help" "--all")
-    (goto-char 0)
-    (search-forward "available git commands in")
-    (let (commands)
-      (while (re-search-forward
-	      "^[[:blank:]]+\\([[:word:]-.]+\\)[[:blank:]]*\\([[:word:]-.]+\\)?"
-	      nil t)
-	(push (match-string 1) commands)
-	(when (match-string 2)
-	  (push (match-string 2) commands)))
-      (sort commands #'string<))))
-
-(defconst pcmpl-git-commands (pcmpl-git-commands)
-  "List of `git' commands.")
-
-(defvar pcmpl-git-ref-list-cmd "git for-each-ref refs/ --format='%(refname)'"
-  "The `git' command to run to get a list of refs.")
-
-(defun pcmpl-git-get-refs (type)
-  "Return a list of `git' refs filtered by TYPE."
-  (with-temp-buffer
-    (insert (shell-command-to-string pcmpl-git-ref-list-cmd))
-    (goto-char (point-min))
-    (let (refs)
-      (while (re-search-forward (concat "^refs/" type "/\\(.+\\)$") nil t)
-	(push (match-string 1) refs))
-      (nreverse refs))))
-
-(defun pcmpl-git-remotes ()
-  "Return a list of remote repositories."
-  (split-string (shell-command-to-string "git remote")))
-
-(defun pcomplete/git ()
-  "Completion for `git'."
-  ;; Completion for the command argument.
-  (pcomplete-here* pcmpl-git-commands)
-  (cond
-   ((pcomplete-match "help" 1)
-    (pcomplete-here* pcmpl-git-commands))
-   ((pcomplete-match (regexp-opt '("pull" "push")) 1)
-    (pcomplete-here (pcmpl-git-remotes)))
-   ;; provide branch completion for the command `checkout'.
-   ((pcomplete-match "checkout" 1)
-    (pcomplete-here* (append (pcmpl-git-get-refs "heads")
-			     (pcmpl-git-get-refs "tags"))))
-   (t
-    (while (pcomplete-here (pcomplete-entries))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(setq cse-startup-message-11-1 nil)
-(setq mpuz-silent t)
-(setq cse-startup-message-12-1 3)
-(setq minibuffer-max-depth nil)
-
 (custom-set-variables
-  ;; custom-set-variables was added by Custom.
-  ;; If you edit it by hand, you could mess it up, so be careful.
-  ;; Your init file should contain only one such instance.
-  ;; If there is more than one, they won't work right.
- '(case-fold-search t)
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
  '(column-number-mode t)
- '(current-language-environment "Latin-1")
- '(default-input-method "latin-1-prefix")
- '(global-font-lock-mode t nil (font-lock))
  '(inhibit-startup-screen t)
- '(show-paren-mode t nil (paren))
- '(tool-bar-mode nil)
- '(transient-mark-mode t)
- '(use-file-dialog nil))
-
+ '(lsp-enable-file-watchers nil)
+ '(lsp-ui-doc-delay 1.0)
+ '(lsp-ui-doc-enable t)
+ '(lsp-ui-doc-show-with-cursor t)
+ '(lsp-ui-peek-enable t)
+ '(lsp-ui-sideline-delay 1.0)
+ '(lsp-ui-sideline-enable nil)
+ '(lsp-ui-sideline-ignore-duplicate t)
+ '(lsp-ui-sideline-show-code-actions t)
+ '(lsp-ui-sideline-show-diagnostics t)
+ '(lsp-ui-sideline-show-hover nil)
+ '(lsp-ui-sideline-show-symbol nil)
+ '(lsp-ui-sideline-update-mode 'point)
+ '(package-selected-packages
+   '(multiple-cursors flymake-diagnostic-at-point xref gnu-elpa-keyring-update lsp-mode hungry-delete column-enforce-mode yasnippet which-key magit lsp-ui lsp-origami erlang company))
+ '(scroll-bar-mode nil)
+ '(show-paren-mode t)
+ '(show-trailing-whitespace t)
+ '(treesit-font-lock-level 4)
+ '(visible-bell t)
+ '(warning-suppress-types '((comp))))
 (custom-set-faces
-  ;; custom-set-faces was added by Custom.
-  ;; If you edit it by hand, you could mess it up, so be careful.
-  ;; Your init file should contain only one such instance.
-  ;; If there is more than one, they won't work right.
- )
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(default ((t (:inherit nil :stipple nil :background "white" :foreground "black" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 128 :width normal :foundry "DAMA" :family "Ubuntu Mono"))))
+ '(region ((t (:extend t :background "navajo white" :distant-foreground "gtk_selection_fg_color"))))
+ '(trailing-whitespace ((t (:background "khaki")))))
+(message "LOADING .emacs done")
